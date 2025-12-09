@@ -1,0 +1,144 @@
+{
+  "project": {
+    "name": "UsxToCsv",
+    "description": "PowerShell script that converts USX (Unified Scripture XML) files into CSV for Bible publishing, InDesign layout, and analysis.",
+    "owner": "Yasutaka",
+    "state_version": "0.3.0",
+    "last_updated": "2025-12-09"
+  },
+  "script": {
+    "filename": "UsxToCsv.ps1",
+    "language": "PowerShell",
+    "entry_parameters": {
+      "InputPath": "string (file or folder path containing .usx)",
+      "OutputFolder": "string (optional path for .csv output)"
+    },
+    "current_behavior": {
+      "input_support": [
+        "Single .usx file",
+        "Folder of .usx files"
+      ],
+      "output_strategy": "One CSV per USX file, same basename, written either next to USX or into OutputFolder if specified.",
+      "csv_columns": [
+        "Book",
+        "Chapter",
+        "Verse",
+        "TextPlain",
+        "TextStyled",
+        "Footnotes",
+        "Crossrefs",
+        "Subtitle"
+      ],
+      "verse_handling": {
+        "milestone_style": true,
+        "start_marker": "verse element with sid attribute",
+        "end_marker": "verse element with eid attribute",
+        "verse_number_source": "verse/@number",
+        "chapter_number_source": "chapter/@number",
+        "whitespace_normalization": "Multiple spaces collapsed to single, trimmed."
+      },
+      "inline_styles": {
+        "char_element": "char",
+        "mapping": {
+          "wj": "wj",
+          "add": "add",
+          "nd": "nd",
+          "bdit": "bdit",
+          "it": "i",
+          "bd": "b",
+          "default": "span"
+        },
+        "text_plain": "Inline tags removed, only text kept.",
+        "text_styled": "Wrapped with <tag>...</tag> in TextStyled, suitable for InDesign GREP styles."
+      },
+      "notes_handling": {
+        "note_element": "note",
+        "footnote_vs_crossref_logic": "If note/@style starts with 'x' => Crossrefs; otherwise => Footnotes.",
+        "ft_only": true,
+        "caller_ignored": true,
+        "fr_ignored": true,
+        "ft_extraction": "Find first <char style='ft'> within note (namespace-agnostic), use its InnerText, normalize whitespace.",
+        "footnotes_column_content": "Joined FT strings with ' | ' delimiter.",
+        "crossrefs_column_content": "Joined FT strings with ' | ' delimiter."
+      },
+      "subtitle_handling": {
+        "source_element": "para",
+        "recognized_styles": [
+          "s",
+          "s1",
+          "s2",
+          "s3",
+          "sp",
+          "ms",
+          "mr",
+          "mt",
+          "mt1",
+          "mt2"
+        ],
+        "logic": "When a para with a recognized style appears, its plain InnerText becomes currentSubtitle. Every verse row uses the latest currentSubtitle until another subtitle overrides it.",
+        "chapter_reset": "Currently NOT resetting subtitle automatically at new chapter (commented option exists)."
+      },
+      "sorting": {
+        "book_sort": "By Book string",
+        "chapter_sort": "Chapter cast to int",
+        "verse_sort": "Verse as string to allow 3, 3a, 3b, etc."
+      }
+    },
+    "helpers": {
+      "Get-AttrValue": "Safe attribute getter for XML nodes.",
+      "Find-FtNode": "Recursive search for first <char style='ft'> inside a note.",
+      "ExtractFTFromNote": "Returns cleaned FT text from a note; used by Process-NoteNode.",
+      "Get-PlainInnerText": "Returns InnerText of a node with whitespace normalized.",
+      "Get-StyledTagName": "Maps USX char/@style to output tag name used in TextStyled.",
+      "Process-NoteNode": "Classifies notes as footnotes or crossrefs and appends FT-only text to current lists.",
+      "Process-Node": "Main recursive XML walker handling chapter, verse, para, note, char, and text nodes.",
+      "Add-CurrentVerse": "Adds one PSCustomObject row to the rows collection using current per-verse state."
+    }
+  },
+  "conventions": {
+    "encoding": "UTF-8 for reading USX and writing CSV.",
+    "csv_delimiter": "Comma (standard Export-Csv behavior).",
+    "footnote_join_delimiter": " | ",
+    "crossref_join_delimiter": " | ",
+    "tag_brackets": "TextStyled uses <tag>...</tag> for GREP styling in InDesign."
+  },
+  "known_limitations": [
+    "Not intended to be round-trippable back to USX.",
+    "Does not yet handle poetry indentation (q1, q2, etc.) explicitly.",
+    "Does not yet export tables or lists as structured CSV.",
+    "Does not emit separate CSVs for subtitles, footnotes, or crossrefs.",
+    "Does not yet support multi-book USX files in a single XML (assumes one <book> per file)."
+  ],
+  "next_steps_todo": [
+    {
+      "id": "poetry_support",
+      "description": "Detect para styles q, q1, q2, etc., and add a PoetryLevel or ParaStyle column to indicate poetic indentation.",
+      "status": "pending"
+    },
+    {
+      "id": "separate_notes_csv",
+      "description": "Optionally emit Footnotes.csv and Crossrefs.csv with book, chapter, verse, note_index, text.",
+      "status": "pending"
+    },
+    {
+      "id": "subtitle_index",
+      "description": "Generate a subtitles index CSV (Book, Chapter, FirstVerse, Subtitle) for TOCs or pericope lists.",
+      "status": "pending"
+    },
+    {
+      "id": "configurable_style_mapping",
+      "description": "Move inline style mapping (wj/add/nd/etc.) to an external JSON config so different publishers can customize.",
+      "status": "pending"
+    },
+    {
+      "id": "multi-book_usx_support",
+      "description": "Detect and handle USX files containing multiple <book> elements if needed.",
+      "status": "pending"
+    }
+  ],
+  "usage_examples": {
+    "single_file": ".\\UsxToCsv.ps1 -InputPath \"C:\\\\Bible\\\\JHN.usx\"",
+    "folder_default_output": ".\\UsxToCsv.ps1 -InputPath \"C:\\\\Bible\\\\USX\"",
+    "folder_custom_output": ".\\UsxToCsv.ps1 -InputPath \"C:\\\\Bible\\\\USX\" -OutputFolder \"C:\\\\Bible\\\\CSV\""
+  }
+}
