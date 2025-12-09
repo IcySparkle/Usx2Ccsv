@@ -1,5 +1,5 @@
 # UsxToCsv — USX → CSV Conversion Tool
-### PowerShell script for Bible publishing, InDesign workflows, and data analysis.
+### PowerShell script for converting USX format to CSV.
 
 ---
 
