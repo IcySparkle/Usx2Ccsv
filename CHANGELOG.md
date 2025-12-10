@@ -30,7 +30,7 @@ This project follows a simple semantic versioning style: **MAJOR.MINOR.PATCH**.
 
 ---
 
-## **0.4.0 — 2025-12-08**
+## **0.4.0 — 2025-12-09**
 ### ➕ Enhancements
 - Added recognition of `qt`, `qt1–4`, `+qt`, `+qt*` inline quotation markers.
 - Improved subtitle detection logic.
@@ -38,7 +38,7 @@ This project follows a simple semantic versioning style: **MAJOR.MINOR.PATCH**.
 
 ---
 
-## **0.3.0 — 2025-12-07**
+## **0.3.0 — 2025-12-09**
 ### ✨ Structured Output Improvements
 - Introduced `Subtitle` column.
 - Improved footnote extraction: FT-only now enforced.
@@ -46,14 +46,14 @@ This project follows a simple semantic versioning style: **MAJOR.MINOR.PATCH**.
 
 ---
 
-## **0.2.0 — 2025-12-06**
+## **0.2.0 — 2025-12-09**
 ### 📦 Multi-file Support & Output Controls
 - Added support for folders and batch processing.
 - Added `-OutputFolder` parameter.
 
 ---
 
-## **0.1.0 — 2025-12-05**
+## **0.1.0 — 2025-12-09**
 ### 🎉 Initial Version
 - Basic USX → CSV converter.
 - Verse milestone handling (`sid` / `eid`).
@@ -61,5 +61,3 @@ This project follows a simple semantic versioning style: **MAJOR.MINOR.PATCH**.
 - Basic plain vs styled text output.
 
 ---
-
-If you'd like **auto-generated release notes**, GitHub Actions integration, or a **CHANGELOG for UsxToPlainText**, I can create those too.
