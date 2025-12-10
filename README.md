@@ -1,189 +1,259 @@
-# UsxToCsv — Structured Verse-Level CSV Export from USX Scripture Files
+# UsxToCsv — Convert USX / USFM / SFM Bible Files into a Clean CSV Format
 
-`UsxToCsv.ps1` is a PowerShell script that converts **USX (Unified Scripture XML)** files into structured **CSV** for Bible publishing, translation workflows, linguistic analysis, and typesetting systems such as Adobe InDesign.
+A PowerShell script for converting **USX**, **USFM**, and **SFM** Bible manuscripts into a consistent, publisher-friendly CSV format suitable for:
 
-The resulting CSV contains **one row per verse**, with clean plain text, optional styled text for GREP styling, extracted footnotes and cross-references, and section headings (subtitles).
+- Bible layout in InDesign  
+- Linguistic / translation analysis  
+- Footnote & cross-reference extraction  
+- QA automation  
+- Parallel Scripture comparison  
 
----
-
-## ✨ Key Features
-
-### ✔ Verse-level structured output
-Each verse becomes a CSV row containing:
-
-| Column | Meaning |
-|--------|---------|
-| **Book** | USX `<book code="XXX">` |
-| **Chapter** | `<chapter number="N">` |
-| **Verse** | `<verse sid="...">` milestone number |
-| **TextPlain** | Clean verse text without inline styling |
-| **TextStyled** | Inline styles converted to light GREP-friendly tags |
-| **Footnotes** | Extracted FT-only footnotes (`<char style="ft">`) |
-| **Crossrefs** | Extracted FT-only cross references |
-| **Subtitle** | Nearest preceding section heading |
+The script is fully harmonized across formats: **USX**, **USFM**, and **SFM** produce the same CSV schema and identical verse-level behavior.
 
 ---
 
-## ✔ Accurate handling of USX verse milestones
+## 🔥 Features
 
-USX uses milestone-style verse markers:
+### ✔ Supports Multiple Formats
 
-```xml
-<verse sid="JHN 1:1" number="1"/>
-...
-<verse eid="JHN 1:1"/>
-```
-
-This script:
-
-- Starts verse capture at `sid`
-- Ends capture at `eid`
-- Aggregates inner text, notes, and inline markup
-- Produces one complete row per verse
+| Format | Detection | Notes |
+|--------|-----------|-------|
+| **USX** (`.usx`) | XML parsing with milestone verse handling | Official USX 3.x compatible |
+| **USFM** (`.usfm`) | Token-based parsing | Supports `\v`, `\p`, `\q`, `\qt`, `\+` markers |
+| **SFM** (`.sfm`) | Alias for USFM | Fully supported |
 
 ---
 
-## ✔ Clean Text Extraction
+### ✔ Unified Verse Output Model
 
-### **TextPlain**
-- All inline `<char>` tags stripped  
-- Notes removed  
-- Whitespace normalized  
-- `<char style="sup">…</char>` **skipped entirely**
+Regardless of format:
 
-### **TextStyled**
-Inline styles mapped for InDesign GREP use:
-
-| USX style | Output tag |
-|-----------|------------|
-| `wj` | `<wj>` |
-| `add` | `<add>` |
-| `nd` | `<nd>` |
-| `it` | `<i>` |
-| `bd` | `<b>` |
-| `bdit` | `<bdit>` |
-| *(others)* | `<span>` |
+- One CSV **row per verse**
+- Text merged across multiple paragraphs (USX `para`, USFM `\p`/`\m`/`\q`)
+- A verse ends when:
+  - **USX**: the `</verse eid="">` milestone is encountered  
+  - **USFM**: a new `\v` marker appears  
 
 ---
 
-## ✔ Footnotes & Cross-References (FT-only)
+### ✔ Inline Formatting → Plain and Styled Output
 
-Only FT-text is extracted from notes:
+Inline tags are translated into:
 
-```xml
-<note style="f">
-    <char style="fr">1:12</char>
+| USX/USFM Style | CSV Output Tag |
+|----------------|----------------|
+| `wj`   | `<wj>...</wj>` |
+| `add`  | `<add>...</add>` |
+| `nd`   | `<nd>...</nd>` |
+| `it`   | `<i>...</i>` |
+| `bd`   | `<b>...</b>` |
+| `bdit` | `<bdit>...</bdit>` |
+| *(other styles)* | `<span>...</span>` |
+
+CSV provides two columns:
+
+- **TextPlain** → all tags stripped  
+- **TextStyled** → GREP-style tags preserved  
+
+Superscript content:
+
+- USX: `<char style="sup">…</char>`  
+- USFM: `\sup ... \sup*` and `\+sup ... \+sup*`  
+
+→ **always removed** and not included in either column.
+
+---
+
+### ✔ FT-Only Footnote & Cross-reference Extraction
+
+For both USX and USFM:
+
+- Only **FT (footnote text)** is included  
+- Caller, FR (footnote reference), and other meta markers are ignored  
+- `Footnotes` and `Crossrefs` columns join multiple items with ` | `  
+
+Examples:
+
+- USX:  
+  ```xml
+  <note style="f">
+    <char style="fr">1:3 </char>
     <char style="ft">Some manuscripts say...</char>
-</note>
-```
+  </note>
+  ```
+- USFM:  
+  ```usfm
+  \f + \fr 1:3 \ft Some manuscripts say...\f*
+  ```
 
-Classification:
-
-- Styles beginning with **x** → Crossrefs  
-- All others → Footnotes  
-
-Multiple entries are joined with ` | `.
+In both cases, only **`Some manuscripts say...`** appears in the CSV.
 
 ---
 
-## ✔ Subtitle Handling
+### ✔ Subtitle / Heading Capture
 
-Recognized heading styles:
+Recognized as subtitles:
 
+- **USX**: `s, s1, s2, s3, sp, ms, mr, mt, mt1, mt2`  
+- **USFM/SFM**: `\s`, `\s1`–`\s3`, `\sp`, `\ms`, `\mr`, `\mt`, `\mt1`, `\mt2`  
+
+Behavior:
+
+- Subtitle is **remembered** until replaced by the next one  
+- Every verse row receives the current subtitle in the `Subtitle` column  
+
+---
+
+### ✔ Sanity-Focused Normalization
+
+- All whitespace collapsed to single spaces  
+- Line breaks in source are irrelevant for final CSV  
+- Unknown backslash markers in USFM are removed unless intentionally mapped  
+- Rows are sorted by **Book**, **Chapter (numeric)**, **Verse (string)**  
+
+---
+
+## 📦 CSV Columns
+
+| Column      | Description                                      |
+|-------------|--------------------------------------------------|
+| **Book**    | USX `<book code="">` or USFM `\id` value         |
+| **Chapter** | Numeric chapter number                           |
+| **Verse**   | Verse number (supports `1`, `1a`, `1b`, etc.)    |
+| **TextPlain**  | Verse text with inline styling removed        |
+| **TextStyled** | Verse text with inline styles as GREP tags    |
+| **Footnotes**  | FT-only footnotes joined with ` | `           |
+| **Crossrefs**  | FT-only cross-references joined with ` | `    |
+| **Subtitle**   | Last seen heading text                        |
+
+---
+
+## 🚀 Usage
+
+### Convert a Single File
+
+```powershell
+.\UsxToCsv.ps1 -InputPath "C:\Bible\JHN.usx"
+.\UsxToCsv.ps1 -InputPath "C:\Bible\JHN.usfm"
+.\UsxToCsv.ps1 -InputPath "C:\Bible\JHN.sfm"
 ```
-s, s1, s2, s3, sp
-ms, mr
-mt, mt1, mt2
+
+### Convert an Entire Folder
+
+```powershell
+.\UsxToCsv.ps1 -InputPath "C:\Bible\Sources"
 ```
 
-Each verse row inherits the latest subtitle until another appears.
+Where `Sources` may contain a mix of:
+
+```text
+C:\Bible\Sources\
+   ├── MAT.usx
+   ├── MRK.usfm
+   ├── LUK.sfm
+   └── JHN.usx
+```
+
+### Specify a Custom Output Folder
+
+```powershell
+.\UsxToCsv.ps1 -InputPath "C:\Bible\Sources" -OutputFolder "C:\Bible\CSV"
+```
+
+Each file generates a matching `.csv`:
+
+```text
+MAT.csv
+MRK.csv
+LUK.csv
+JHN.csv
+```
 
 ---
 
 ## 📁 Example CSV Row
 
-```
+```csv
 Book,Chapter,Verse,TextPlain,TextStyled,Footnotes,Crossrefs,Subtitle
-3JN,1,1,"The elder to the beloved Gaius...","<bdit>The elder</bdit> to the beloved...",,"","Greeting"
+3JN,1,1,"The elder to the beloved Gaius, whom I love in truth.","The elder to the beloved Gaius, whom I love in truth.",,"","Greeting"
+```
+
+If styling is present:
+
+```csv
+3JN,1,1,"The elder to the beloved Gaius...","<bdit>The elder</bdit> to the beloved Gaius...",,"","Greeting"
 ```
 
 ---
 
-# 🚀 Usage
+## 🧠 What the Script Handles
 
-### Convert a single USX file
+### USX
 
-```powershell
-.\UsxToCsv.ps1 -InputPath ".\JHN.usx"
-```
+- `<verse sid="">` / `<verse eid="">` milestones  
+- `<para style="">` including headings and body paragraphs  
+- `<char style="">` inline styles mapped to tags  
+- `<note style="f">`, `<note style="x">` with FT extraction  
 
-### Convert all USX files in a folder
+### USFM/SFM
 
-```powershell
-.\UsxToCsv.ps1 -InputPath ".\USX"
-```
-
-### Specify output folder
-
-```powershell
-.\UsxToCsv.ps1 -InputPath ".\USX" -OutputFolder ".\CSV"
-```
-
-CSV files default to the same folder as the source.
+- `\id`, `\c`, `\v`  
+- Paragraphs: `\m`, `\p`, `\pi`, `\q`, `\q1`–`\q4`, `\qt`, `\qt1`–`\qt4`  
+- Headings: `\s`, `\s1`–`\s3`, `\sp`, `\ms`, `\mr`, `\mt`, `\mt1`, `\mt2`  
+- Notes: `\f ... \f*`, `\x ... \x*` with FT-only extraction  
+- Inline styling: `\bd`, `\it`, `\add`, `\nd`, `\wj`, and their `\+` forms  
+- Superscripts: `\sup ... \sup*`, `\+sup ... \+sup*` removed  
 
 ---
 
-# 🧠 Implementation Notes
+## 🛠 Requirements
 
-### Verse milestones
-- `sid` = start  
-- `eid` = end  
-
-### Inline superscripts removed
-`<char style="sup">` content is intentionally **ignored**.
-
-### Whitespace normalization
-All internal spacing compressed to a clean single-space layout.
+- Windows PowerShell 5.1 **or** PowerShell 7+  
+- UTF-8 encoded USX/USFM/SFM files  
 
 ---
 
-# 📦 Output Files
+## 📝 Limitations
 
-```
-Input:  JHN.usx
-Output: JHN.csv
-```
-
----
-
-# 🛠 Recommended Use Cases
-
-- Bible typesetting pipelines
-- Translation QA workflows
-- Linguistic analysis tools
-- Scripture content review systems
-- Machine learning preprocessing
+- Does not yet export table structures (e.g., `\tr`, `\tc1`, etc.) as structured CSV  
+- No reverse-mapping from CSV back to USX/USFM  
+- Multi-book USX files are treated as single-book input; multiple `<book>` elements are not merged across files  
+- Poetry/paragraph structure (e.g., `q1`, `q2`) is not currently represented as a separate CSV column  
 
 ---
 
-# 🤝 Contributing
+## 🔮 Planned Enhancements
 
-Enhancements welcome! Particularly:
-
-- Poetry-level tagging
-- Multi-book USX support
-- Custom inline-style mappings
-- JSON/Parquet output options
+- Poetry-level export (`q`, `q1`, `q2`, etc.) into a `PoetryLevel` or `ParaStyle` column  
+- Optional companion `Footnotes.csv` and `Crossrefs.csv` with detailed metadata  
+- Subtitle index CSV (Book, Chapter, FirstVerse, Subtitle)  
+- JSON-based configuration for style mappings and publisher-specific options  
 
 ---
 
-# 📜 License
+## 🤝 Contributing
 
-MIT License — Free for commercial and non‑commercial use.
+Contributions are welcome! Helpful contributions include:
+
+- Edge-case USX/USFM test files  
+- Performance improvements  
+- Publisher-specific style mapping examples  
+- Additional export formats (JSON, Parquet, etc.)
 
 ---
 
-# 🙌 Acknowledgements
+## 📜 License
 
-Inspired by real-world Scripture publishing and translation workflows.  
-Designed for compatibility with Paratext, DBL USX exports, and professional typesetting systems.
+Released under the **MIT License** — free for commercial and non-commercial use.
+
+---
+
+## 🙌 Acknowledgements
+
+This tool is inspired by real-world Scripture publishing and translation workflows and is designed to integrate smoothly with:
+
+- Paratext USFM/USX output  
+- Digital Bible Library (DBL) USX exports  
+- Professional typesetting systems such as Adobe InDesign  
+
+The goal is to make high-quality, verse-structured Scripture data easy to inspect, transform, and typeset.
