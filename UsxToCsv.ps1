@@ -1,4 +1,4 @@
-﻿param(
+param(
     [Parameter(Mandatory = $true)]
     [string]$InputPath,
 
@@ -43,6 +43,16 @@ if ($usxFiles.Count -eq 0) {
     exit 1
 }
 
+# ---- Helper: normalize whitespace ----
+function Normalize-Whitespace {
+    param(
+        [string]$Text
+    )
+    if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
+    $normalized = [System.Text.RegularExpressions.Regex]::Replace($Text, '\s+', ' ')
+    return $normalized.Trim()
+}
+
 # ---- Helper: get attribute value safely ----
 function Get-AttrValue {
     param(
@@ -80,8 +90,7 @@ function Get-PlainInnerText {
     $raw = $node.InnerText
     if ([string]::IsNullOrWhiteSpace($raw)) { return "" }
 
-    $clean = ($raw -replace "\s+", " ").Trim()
-    return $clean
+    return (Normalize-Whitespace -Text $raw)
 }
 
 # ---- Find first <char style="ft"> node under a note ----
@@ -119,8 +128,7 @@ function ExtractFTFromNote {
     $raw = $ftNode.InnerText
     if ([string]::IsNullOrWhiteSpace($raw)) { return "" }
 
-    $clean = ($raw -replace "\s+", " ").Trim()
-    return $clean
+    return (Normalize-Whitespace -Text $raw)
 }
 
 function Convert-UsxToCsv {
@@ -277,7 +285,13 @@ function Convert-UsxToCsv {
                     'char' {
                         # Inline styled span
                         $style = Get-AttrValue -Node $node -Name "style"
-                        $tag   = $null
+
+                        # --- NEW: skip superscript content completely ---
+                        if ($style -eq 'sup') {
+                            return
+                        }
+
+                        $tag = $null
                         if ($style) {
                             $tag = Get-StyledTagName -style $style
                         }
