@@ -169,6 +169,13 @@ LUK.csv
 JHN.csv
 ```
 
+### Convert with Wildcards or Multiple Inputs
+
+```powershell
+.\UsxToCsv.ps1 -InputPath "C:\Bible\*.usx"
+.\UsxToCsv.ps1 -InputPath "C:\Bible\MAT.usx","C:\Bible\MRK.usfm"
+```
+
 ---
 
 ## 📁 Example CSV Row

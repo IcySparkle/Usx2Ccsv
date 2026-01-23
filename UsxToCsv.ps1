@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
-    [string]$InputPath,
+    [string[]]$InputPath,
 
     [Parameter(Mandatory = $false)]
     [string]$OutputFolder,
@@ -18,11 +18,13 @@ function Show-Usage {
     Write-Host "UsxToCsv.ps1 - Convert USX/USFM/SFM to CSV"
     Write-Host ""
     Write-Host "Usage:"
-    Write-Host "  .\UsxToCsv.ps1 -InputPath <file|folder> [-OutputFolder <folder>]"
+    Write-Host "  .\UsxToCsv.ps1 -InputPath <file|folder|wildcard> [-OutputFolder <folder>]"
     Write-Host "  .\UsxToCsv.ps1 -Help"
     Write-Host ""
     Write-Host "Examples:"
     Write-Host "  .\UsxToCsv.ps1 -InputPath C:\Bible\JHN.usx"
+    Write-Host "  .\UsxToCsv.ps1 -InputPath C:\Bible\*.usx"
+    Write-Host "  .\UsxToCsv.ps1 -InputPath C:\Bible\MAT.usx,C:\Bible\MRK.usfm"
     Write-Host "  .\UsxToCsv.ps1 -InputPath C:\Bible\Sources -OutputFolder C:\Bible\CSV"
 }
 
@@ -32,9 +34,17 @@ if ($Help -or -not $PSBoundParameters.Count) {
 }
 
 # ---- Validate Input Path ----
-if (-not (Test-Path $InputPath)) {
-    Write-Error "Input path not found: $InputPath"
-    exit 1
+$inputItems = New-Object System.Collections.Generic.List[object]
+
+foreach ($path in $InputPath) {
+    $resolved = Get-ChildItem -Path $path -Force -ErrorAction SilentlyContinue
+    if (-not $resolved) {
+        Write-Error "Input path not found: $path"
+        exit 1
+    }
+    foreach ($item in $resolved) {
+        $inputItems.Add($item)
+    }
 }
 
 # ---- Prepare Output Folder ----
@@ -48,14 +58,16 @@ if ($OutputFolder) {
 # ---- Collect Input Files (.usx, .usfm, .sfm) ----
 $files = @()
 
-if ((Get-Item $InputPath).PSIsContainer) {
-    $files = Get-ChildItem -Path $InputPath -File |
-             Where-Object { $_.Extension.ToLowerInvariant() -in @('.usx','.usfm','.sfm') }
-}
-else {
-    $ext = [System.IO.Path]::GetExtension($InputPath).ToLowerInvariant()
+foreach ($item in $inputItems) {
+    if ($item.PSIsContainer) {
+        $files += Get-ChildItem -Path $item.FullName -File |
+                  Where-Object { $_.Extension.ToLowerInvariant() -in @('.usx','.usfm','.sfm') }
+        continue
+    }
+
+    $ext = $item.Extension.ToLowerInvariant()
     if ($ext -in @('.usx','.usfm','.sfm')) {
-        $files = ,(Get-Item $InputPath)
+        $files += $item
     }
     else {
         Write-Error "Input must be a .usx, .usfm, or .sfm file, or a folder containing them."
@@ -509,24 +521,25 @@ function Convert-UsfmToCsv {
 
     function Add-CurrentVerseUsfm {
         param($Book, $Chapter, $Verse,
-              [ref]$Plain, [ref]$Styled,
-              [ref]$Fts, [ref]$Xrefs,
-              [ref]$Subtitle,
-              [ref]$Rows)
+              [string]$Plain, [string]$Styled,
+              [System.Collections.Generic.List[string]]$Fts,
+              [System.Collections.Generic.List[string]]$Xrefs,
+              [string]$Subtitle,
+              [System.Collections.Generic.List[object]]$Rows)
 
-        $plain   = $Plain.Value.Trim()
-        $styled  = $Styled.Value.Trim()
-        $subText = $Subtitle.Value.Trim()
+        $plain   = if ($Plain) { $Plain.Trim() } else { "" }
+        $styled  = if ($Styled) { $Styled.Trim() } else { "" }
+        $subText = if ($Subtitle) { $Subtitle.Trim() } else { "" }
 
         if ($Book -and $Chapter -and $Verse -and $plain) {
-            $Rows.Value.Add([pscustomobject]@{
+            $Rows.Add([pscustomobject]@{
                 Book       = $Book
                 Chapter    = $Chapter
                 Verse      = $Verse
                 TextPlain  = $plain
                 TextStyled = $styled
-                Footnotes  = ($Fts.Value -join " | ")
-                Crossrefs  = ($Xrefs.Value -join " | ")
+                Footnotes  = ($Fts -join " | ")
+                Crossrefs  = ($Xrefs -join " | ")
                 Subtitle   = $subText
             })
         }
@@ -544,12 +557,12 @@ function Convert-UsfmToCsv {
                 Add-CurrentVerseUsfm -Book $bookCode `
                                      -Chapter $currentChapter `
                                      -Verse $currentVerse `
-                                     -Plain ([ref]$currentPlainText) `
-                                     -Styled ([ref]$currentStyledText) `
-                                     -Fts ([ref]$currentFootnotes) `
-                                     -Xrefs ([ref]$currentCrossrefs) `
-                                     -Subtitle ([ref]$currentSubtitle) `
-                                     -Rows ([ref]$rows)
+                                     -Plain $currentPlainText `
+                                     -Styled $currentStyledText `
+                                     -Fts $currentFootnotes `
+                                     -Xrefs $currentCrossrefs `
+                                     -Subtitle $currentSubtitle `
+                                     -Rows $rows
             }
 
             $currentVerse     = $null
@@ -584,12 +597,12 @@ function Convert-UsfmToCsv {
                 Add-CurrentVerseUsfm -Book $bookCode `
                                      -Chapter $currentChapter `
                                      -Verse $currentVerse `
-                                     -Plain ([ref]$currentPlainText) `
-                                     -Styled ([ref]$currentStyledText) `
-                                     -Fts ([ref]$currentFootnotes) `
-                                     -Xrefs ([ref]$currentCrossrefs) `
-                                     -Subtitle ([ref]$currentSubtitle) `
-                                     -Rows ([ref]$rows)
+                                     -Plain $currentPlainText `
+                                     -Styled $currentStyledText `
+                                     -Fts $currentFootnotes `
+                                     -Xrefs $currentCrossrefs `
+                                     -Subtitle $currentSubtitle `
+                                     -Rows $rows
             }
 
             $currentVerse      = $matches[1]
@@ -637,12 +650,12 @@ function Convert-UsfmToCsv {
         Add-CurrentVerseUsfm -Book $bookCode `
                              -Chapter $currentChapter `
                              -Verse $currentVerse `
-                             -Plain ([ref]$currentPlainText) `
-                             -Styled ([ref]$currentStyledText) `
-                             -Fts ([ref]$currentFootnotes) `
-                             -Xrefs ([ref]$currentCrossrefs) `
-                             -Subtitle ([ref]$currentSubtitle) `
-                             -Rows ([ref]$rows)
+                             -Plain $currentPlainText `
+                             -Styled $currentStyledText `
+                             -Fts $currentFootnotes `
+                             -Xrefs $currentCrossrefs `
+                             -Subtitle $currentSubtitle `
+                             -Rows $rows
     }
 
     $rows |
