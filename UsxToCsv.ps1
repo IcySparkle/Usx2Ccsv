@@ -37,13 +37,25 @@ if ($Help -or -not $PSBoundParameters.Count) {
 $inputItems = New-Object System.Collections.Generic.List[object]
 
 foreach ($path in $InputPath) {
-    $resolved = Get-ChildItem -Path $path -Force -ErrorAction SilentlyContinue
-    if (-not $resolved) {
+    $resolvedPath = Resolve-Path -Path $path -ErrorAction SilentlyContinue
+    if (-not $resolvedPath) {
         Write-Error "Input path not found: $path"
         exit 1
     }
-    foreach ($item in $resolved) {
-        $inputItems.Add($item)
+
+    foreach ($rp in $resolvedPath) {
+        $item = Get-Item -LiteralPath $rp.Path -Force -ErrorAction SilentlyContinue
+        if (-not $item) {
+            Write-Error "Input path not found: $path"
+            exit 1
+        }
+
+        if ($item.PSIsContainer) {
+            $inputItems.Add($item)
+        }
+        else {
+            $inputItems.Add($item)
+        }
     }
 }
 
