@@ -1,13 +1,35 @@
+[CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$InputPath,
 
     [Parameter(Mandatory = $false)]
-    [string]$OutputFolder
+    [string]$OutputFolder,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$Help
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# ---- Help / Usage ----
+function Show-Usage {
+    Write-Host "UsxToCsv.ps1 - Convert USX/USFM/SFM to CSV"
+    Write-Host ""
+    Write-Host "Usage:"
+    Write-Host "  .\UsxToCsv.ps1 -InputPath <file|folder> [-OutputFolder <folder>]"
+    Write-Host "  .\UsxToCsv.ps1 -Help"
+    Write-Host ""
+    Write-Host "Examples:"
+    Write-Host "  .\UsxToCsv.ps1 -InputPath C:\Bible\JHN.usx"
+    Write-Host "  .\UsxToCsv.ps1 -InputPath C:\Bible\Sources -OutputFolder C:\Bible\CSV"
+}
+
+if ($Help -or -not $PSBoundParameters.Count) {
+    Show-Usage
+    exit 0
+}
 
 # ---- Validate Input Path ----
 if (-not (Test-Path $InputPath)) {
