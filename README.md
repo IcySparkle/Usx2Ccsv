@@ -199,6 +199,13 @@ Run:
 .\usxtocsv -input "C:\Bible\MAT.usx" -input "C:\Bible\MRK.usfm"
 ```
 
+Automation:
+
+```powershell
+.\usxtocsv -input "C:\Bible\JHN.usx" -json
+.\usxtocsv -input "C:\Bible\JHN.usx" -quiet
+```
+
 ### Rust
 
 Build:
@@ -214,6 +221,13 @@ Run:
 .\target\release\usxtocsv -input "C:\Bible\JHN.usx"
 .\target\release\usxtocsv -input "C:\Bible\*.usx" -output "C:\Bible\CSV"
 .\target\release\usxtocsv -input "C:\Bible\MAT.usx" -input "C:\Bible\MRK.usfm"
+```
+
+Automation:
+
+```powershell
+.\target\release\usxtocsv -input "C:\Bible\JHN.usx" -json
+.\target\release\usxtocsv -input "C:\Bible\JHN.usx" -quiet
 ```
 
 ---

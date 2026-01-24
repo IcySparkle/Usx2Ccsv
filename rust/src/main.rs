@@ -3,6 +3,7 @@ use glob::glob;
 use quick_xml::events::Event;
 use quick_xml::Reader;
 use regex::{Captures, Regex};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -35,6 +36,19 @@ struct Row {
     subtitle: String,
 }
 
+#[derive(Serialize)]
+struct FileResult {
+    input: String,
+    output: String,
+    format: String,
+    rows: usize,
+}
+
+#[derive(Serialize)]
+struct Summary {
+    files: Vec<FileResult>,
+}
+
 struct UsxState {
     book_code: String,
     current_chapter: String,
@@ -51,6 +65,8 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let mut inputs: Vec<String> = Vec::new();
     let mut output_folder: Option<String> = None;
+    let mut quiet = false;
+    let mut json_out = false;
 
     let mut i = 1;
     while i < args.len() {
@@ -75,6 +91,12 @@ fn main() {
                 }
                 output_folder = Some(args[i].clone());
             }
+            "-quiet" | "--quiet" => {
+                quiet = true;
+            }
+            "-json" | "--json" => {
+                json_out = true;
+            }
             other => {
                 inputs.push(other.to_string());
             }
@@ -90,45 +112,62 @@ fn main() {
     let input_items = match resolve_input_items(&inputs) {
         Ok(items) => items,
         Err(err) => {
-            eprintln!("{}", err);
-            std::process::exit(1);
+            fail(&err, json_out);
         }
     };
 
     let files = match collect_files(&input_items) {
         Ok(items) => items,
         Err(err) => {
-            eprintln!("{}", err);
-            std::process::exit(1);
+            fail(&err, json_out);
         }
     };
 
     if files.is_empty() {
-        eprintln!("No .usx, .usfm, or .sfm files found.");
-        std::process::exit(1);
+        fail("No .usx, .usfm, or .sfm files found.", json_out);
     }
 
     if let Some(ref folder) = output_folder {
         if let Err(err) = fs::create_dir_all(folder) {
-            eprintln!("{}", err);
-            std::process::exit(1);
+            fail(&err.to_string(), json_out);
         }
     }
+
+    let mut summary = Summary { files: Vec::new() };
 
     for path in files {
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
         let csv_path = output_path(&path, output_folder.as_deref());
 
         let result = match ext.as_str() {
-            "usx" => convert_usx_to_csv(&path, &csv_path),
-            "usfm" | "sfm" => convert_usfm_to_csv(&path, &csv_path),
+            "usx" => convert_usx_to_csv(&path, &csv_path, quiet).map(|rows| {
+                summary.files.push(FileResult {
+                    input: path.display().to_string(),
+                    output: csv_path.display().to_string(),
+                    format: "usx".to_string(),
+                    rows,
+                });
+            }),
+            "usfm" | "sfm" => convert_usfm_to_csv(&path, &csv_path, quiet).map(|rows| {
+                summary.files.push(FileResult {
+                    input: path.display().to_string(),
+                    output: csv_path.display().to_string(),
+                    format: ext.clone(),
+                    rows,
+                });
+            }),
             _ => Ok(()),
         };
 
         if let Err(err) = result {
-            eprintln!("{}", err);
-            std::process::exit(1);
+            fail(&err, json_out);
         }
+    }
+
+    if json_out {
+        let json = serde_json::to_string_pretty(&summary).unwrap_or_else(|_| "{}".to_string());
+        println!("{}", json);
+        return;
     }
 
     println!("All conversions completed.");
@@ -140,6 +179,7 @@ fn show_usage() {
     println!("Usage:");
     println!("  usxtocsv -input <file|folder|wildcard> [-output <folder>]");
     println!("  usxtocsv -input <path1> -input <path2>");
+    println!("  usxtocsv -quiet -json");
     println!("  usxtocsv --help");
 }
 
@@ -227,8 +267,10 @@ fn has_wildcard(text: &str) -> bool {
     text.contains('*') || text.contains('?') || text.contains('[')
 }
 
-fn convert_usx_to_csv(usx_path: &Path, csv_path: &Path) -> Result<(), String> {
-    println!("Processing (USX) {}", usx_path.display());
+fn convert_usx_to_csv(usx_path: &Path, csv_path: &Path, quiet: bool) -> Result<usize, String> {
+    if !quiet {
+        eprintln!("Processing (USX) {}", usx_path.display());
+    }
     let root = parse_xml(usx_path).map_err(|e| e.to_string())?;
     if root.name != "usx" {
         return Err(format!("No <usx> root found in {}", usx_path.display()));
@@ -255,12 +297,16 @@ fn convert_usx_to_csv(usx_path: &Path, csv_path: &Path) -> Result<(), String> {
 
     sort_rows(&mut state.rows);
     write_csv(csv_path, &state.rows).map_err(|e| e.to_string())?;
-    println!("Created CSV: {}", csv_path.display());
-    Ok(())
+    if !quiet {
+        eprintln!("Created CSV: {}", csv_path.display());
+    }
+    Ok(state.rows.len())
 }
 
-fn convert_usfm_to_csv(usfm_path: &Path, csv_path: &Path) -> Result<(), String> {
-    println!("Processing (USFM/SFM) {}", usfm_path.display());
+fn convert_usfm_to_csv(usfm_path: &Path, csv_path: &Path, quiet: bool) -> Result<usize, String> {
+    if !quiet {
+        eprintln!("Processing (USFM/SFM) {}", usfm_path.display());
+    }
     let data = fs::read_to_string(usfm_path).map_err(|e| e.to_string())?;
     let normalized = data.replace("\r\n", "\n");
     let lines: Vec<&str> = normalized.split('\n').collect();
@@ -416,8 +462,10 @@ fn convert_usfm_to_csv(usfm_path: &Path, csv_path: &Path) -> Result<(), String> 
 
     sort_rows(&mut rows);
     write_csv(csv_path, &rows).map_err(|e| e.to_string())?;
-    println!("Created CSV: {}", csv_path.display());
-    Ok(())
+    if !quiet {
+        eprintln!("Created CSV: {}", csv_path.display());
+    }
+    Ok(rows.len())
 }
 
 fn add_current_verse_usfm(
@@ -844,4 +892,14 @@ fn write_csv(path: &Path, rows: &[Row]) -> Result<(), io::Error> {
     }
     writer.flush()?;
     Ok(())
+}
+
+fn fail(message: &str, json_out: bool) -> ! {
+    if json_out {
+        let out = serde_json::json!({ "error": message });
+        println!("{}", serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string()));
+        std::process::exit(1);
+    }
+    eprintln!("{}", message);
+    std::process::exit(1);
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"flag"
@@ -52,6 +53,17 @@ type row struct {
 	Subtitle   string
 }
 
+type fileResult struct {
+	Input  string `json:"input"`
+	Output string `json:"output"`
+	Format string `json:"format"`
+	Rows   int    `json:"rows"`
+}
+
+type summary struct {
+	Files []fileResult `json:"files"`
+}
+
 type usxState struct {
 	bookCode        string
 	currentChapter  string
@@ -68,6 +80,8 @@ func main() {
 	var inputs stringSlice
 	output := flag.String("output", "", "Output folder (optional)")
 	help := flag.Bool("help", false, "Show help")
+	quiet := flag.Bool("quiet", false, "Suppress progress output")
+	jsonOut := flag.Bool("json", false, "Output JSON summary to stdout")
 	flag.Var(&inputs, "input", "Input file/folder/wildcard path (repeatable)")
 	flag.Parse()
 
@@ -78,46 +92,61 @@ func main() {
 
 	inputItems, err := resolveInputItems(inputs)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		fail(err.Error(), *jsonOut)
 	}
 
 	files, err := collectFiles(inputItems)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		fail(err.Error(), *jsonOut)
 	}
 
 	if len(files) == 0 {
-		fmt.Fprintln(os.Stderr, "No .usx, .usfm, or .sfm files found.")
-		os.Exit(1)
+		fail("No .usx, .usfm, or .sfm files found.", *jsonOut)
 	}
 
 	if *output != "" {
 		if err := os.MkdirAll(*output, 0o755); err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
+			fail(err.Error(), *jsonOut)
 		}
 	}
 
+	runSummary := summary{}
 	for _, path := range files {
 		ext := strings.ToLower(filepath.Ext(path))
 		csvPath := outputPath(path, *output)
 
 		switch ext {
 		case ".usx":
-			if err := convertUsxToCsv(path, csvPath); err != nil {
-				fmt.Fprintln(os.Stderr, err.Error())
-				os.Exit(1)
+			rows, err := convertUsxToCsv(path, csvPath, *quiet)
+			if err != nil {
+				fail(err.Error(), *jsonOut)
 			}
+			runSummary.Files = append(runSummary.Files, fileResult{
+				Input:  path,
+				Output: csvPath,
+				Format: "usx",
+				Rows:   rows,
+			})
 		case ".usfm", ".sfm":
-			if err := convertUsfmToCsv(path, csvPath); err != nil {
-				fmt.Fprintln(os.Stderr, err.Error())
-				os.Exit(1)
+			rows, err := convertUsfmToCsv(path, csvPath, *quiet)
+			if err != nil {
+				fail(err.Error(), *jsonOut)
 			}
+			format := strings.TrimPrefix(ext, ".")
+			runSummary.Files = append(runSummary.Files, fileResult{
+				Input:  path,
+				Output: csvPath,
+				Format: format,
+				Rows:   rows,
+			})
 		default:
 			continue
 		}
+	}
+
+	if *jsonOut {
+		writeJSONSummary(runSummary)
+		return
 	}
 
 	fmt.Println("All conversions completed.")
@@ -129,6 +158,7 @@ func showUsage() {
 	fmt.Println("Usage:")
 	fmt.Println("  usxtocsv -input <file|folder|wildcard> [-output <folder>]")
 	fmt.Println("  usxtocsv -input <path1> -input <path2>")
+	fmt.Println("  usxtocsv -quiet -json")
 	fmt.Println("  usxtocsv -help")
 }
 
@@ -222,20 +252,22 @@ func hasWildcard(path string) bool {
 	return strings.ContainsAny(path, "*?[]")
 }
 
-func convertUsxToCsv(usxPath, csvPath string) error {
-	fmt.Printf("Processing (USX) %s\n", usxPath)
+func convertUsxToCsv(usxPath, csvPath string, quiet bool) (int, error) {
+	if !quiet {
+		fmt.Fprintf(os.Stderr, "Processing (USX) %s\n", usxPath)
+	}
 	root, err := parseXML(usxPath)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	if root == nil || root.Name != "usx" {
-		return fmt.Errorf("No <usx> root found in %s", usxPath)
+		return 0, fmt.Errorf("No <usx> root found in %s", usxPath)
 	}
 
 	bookNode := findFirstChild(root, "book")
 	if bookNode == nil {
-		return fmt.Errorf("No <book> found in %s", usxPath)
+		return 0, fmt.Errorf("No <book> found in %s", usxPath)
 	}
 
 	state := &usxState{
@@ -248,18 +280,22 @@ func convertUsxToCsv(usxPath, csvPath string) error {
 
 	sortRows(state.rows)
 	if err := writeCsv(csvPath, state.rows); err != nil {
-		return err
+		return 0, err
 	}
 
-	fmt.Printf("Created CSV: %s\n", csvPath)
-	return nil
+	if !quiet {
+		fmt.Fprintf(os.Stderr, "Created CSV: %s\n", csvPath)
+	}
+	return len(state.rows), nil
 }
 
-func convertUsfmToCsv(usfmPath, csvPath string) error {
-	fmt.Printf("Processing (USFM/SFM) %s\n", usfmPath)
+func convertUsfmToCsv(usfmPath, csvPath string, quiet bool) (int, error) {
+	if !quiet {
+		fmt.Fprintf(os.Stderr, "Processing (USFM/SFM) %s\n", usfmPath)
+	}
 	data, err := os.ReadFile(usfmPath)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	content := strings.ReplaceAll(string(data), "\r\n", "\n")
@@ -360,11 +396,31 @@ func convertUsfmToCsv(usfmPath, csvPath string) error {
 
 	sortRows(rows)
 	if err := writeCsv(csvPath, rows); err != nil {
-		return err
+		return 0, err
 	}
 
-	fmt.Printf("Created CSV: %s\n", csvPath)
-	return nil
+	if !quiet {
+		fmt.Fprintf(os.Stderr, "Created CSV: %s\n", csvPath)
+	}
+	return len(rows), nil
+}
+
+func writeJSONSummary(runSummary summary) {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(runSummary)
+}
+
+func fail(message string, jsonOut bool) {
+	if jsonOut {
+		out := map[string]string{"error": message}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(out)
+		os.Exit(1)
+	}
+	fmt.Fprintln(os.Stderr, message)
+	os.Exit(1)
 }
 
 func addCurrentVerseUsfm(rows *[]row, book, chapter, verse, plain, styled string, footnotes, crossrefs []string, subtitle string) {
