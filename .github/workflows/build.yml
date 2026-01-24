@@ -1,0 +1,118 @@
+name: build
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch: {}
+
+jobs:
+  go-build:
+    name: go ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Build
+        working-directory: go
+        run: |
+          go build -o usxtocsv${{ matrix.os == 'windows-latest' && '.exe' || '' }} .
+      - name: Package
+        shell: bash
+        working-directory: go
+        run: |
+          set -euo pipefail
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            powershell -Command "Compress-Archive -Path usxtocsv.exe -DestinationPath usxtocsv-go-${{ matrix.os }}.zip"
+          else
+            tar -czf usxtocsv-go-${{ matrix.os }}.tar.gz usxtocsv
+          fi
+      - name: Checksums
+        shell: bash
+        working-directory: go
+        run: |
+          set -euo pipefail
+          if [[ -f usxtocsv-go-${{ matrix.os }}.zip ]]; then
+            sha256sum usxtocsv-go-${{ matrix.os }}.zip > usxtocsv-go-${{ matrix.os }}.zip.sha256
+          fi
+          if [[ -f usxtocsv-go-${{ matrix.os }}.tar.gz ]]; then
+            sha256sum usxtocsv-go-${{ matrix.os }}.tar.gz > usxtocsv-go-${{ matrix.os }}.tar.gz.sha256
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: usxtocsv-go-${{ matrix.os }}
+          path: |
+            go/usxtocsv-go-${{ matrix.os }}.zip
+            go/usxtocsv-go-${{ matrix.os }}.tar.gz
+            go/usxtocsv-go-${{ matrix.os }}.zip.sha256
+            go/usxtocsv-go-${{ matrix.os }}.tar.gz.sha256
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            go/usxtocsv-go-${{ matrix.os }}.zip
+            go/usxtocsv-go-${{ matrix.os }}.tar.gz
+            go/usxtocsv-go-${{ matrix.os }}.zip.sha256
+            go/usxtocsv-go-${{ matrix.os }}.tar.gz.sha256
+
+  rust-build:
+    name: rust ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        working-directory: rust
+        run: cargo build --release
+      - name: Package
+        shell: bash
+        working-directory: rust
+        run: |
+          set -euo pipefail
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            powershell -Command "Compress-Archive -Path target/release/usxtocsv.exe -DestinationPath usxtocsv-rust-${{ matrix.os }}.zip"
+          else
+            tar -czf usxtocsv-rust-${{ matrix.os }}.tar.gz -C target/release usxtocsv
+          fi
+      - name: Checksums
+        shell: bash
+        working-directory: rust
+        run: |
+          set -euo pipefail
+          if [[ -f usxtocsv-rust-${{ matrix.os }}.zip ]]; then
+            sha256sum usxtocsv-rust-${{ matrix.os }}.zip > usxtocsv-rust-${{ matrix.os }}.zip.sha256
+          fi
+          if [[ -f usxtocsv-rust-${{ matrix.os }}.tar.gz ]]; then
+            sha256sum usxtocsv-rust-${{ matrix.os }}.tar.gz > usxtocsv-rust-${{ matrix.os }}.tar.gz.sha256
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: usxtocsv-rust-${{ matrix.os }}
+          path: |
+            rust/usxtocsv-rust-${{ matrix.os }}.zip
+            rust/usxtocsv-rust-${{ matrix.os }}.tar.gz
+            rust/usxtocsv-rust-${{ matrix.os }}.zip.sha256
+            rust/usxtocsv-rust-${{ matrix.os }}.tar.gz.sha256
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            rust/usxtocsv-rust-${{ matrix.os }}.zip
+            rust/usxtocsv-rust-${{ matrix.os }}.tar.gz
+            rust/usxtocsv-rust-${{ matrix.os }}.zip.sha256
+            rust/usxtocsv-rust-${{ matrix.os }}.tar.gz.sha256

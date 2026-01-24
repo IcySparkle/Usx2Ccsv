@@ -178,6 +178,46 @@ JHN.csv
 
 ---
 
+## Go and Rust Versions
+
+Both the Go and Rust CLIs implement the same parsing rules and CSV schema as the PowerShell script. Each builds a standalone binary per platform.
+
+### Go
+
+Build:
+
+```powershell
+cd go
+go build -o usxtocsv .
+```
+
+Run:
+
+```powershell
+.\usxtocsv -input "C:\Bible\JHN.usx"
+.\usxtocsv -input "C:\Bible\*.usx" -output "C:\Bible\CSV"
+.\usxtocsv -input "C:\Bible\MAT.usx" -input "C:\Bible\MRK.usfm"
+```
+
+### Rust
+
+Build:
+
+```powershell
+cd rust
+cargo build --release
+```
+
+Run:
+
+```powershell
+.\target\release\usxtocsv -input "C:\Bible\JHN.usx"
+.\target\release\usxtocsv -input "C:\Bible\*.usx" -output "C:\Bible\CSV"
+.\target\release\usxtocsv -input "C:\Bible\MAT.usx" -input "C:\Bible\MRK.usfm"
+```
+
+---
+
 ## 📁 Example CSV Row
 
 ```csv
