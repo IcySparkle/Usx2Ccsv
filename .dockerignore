@@ -1,0 +1,9 @@
+.git
+.github
+out
+rust
+*.md
+*.json
+CHANGELOG.md
+project-state.json
+UsxToCsv.ps1

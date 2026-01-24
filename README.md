@@ -232,6 +232,53 @@ Automation:
 
 ---
 
+## Web App (Upload -> Download)
+
+A minimal web app is included for browser uploads. It accepts `.usx`, `.usfm`, `.sfm`, or `.zip` files and returns a zip of CSVs.
+
+### Run Locally (Go)
+
+```powershell
+cd go
+go run .\web
+```
+
+Open `http://localhost:8080` in your browser.
+
+### Run with Docker
+
+```bash
+docker build -t usxtocsv-web .
+docker run -p 8080:8080 usxtocsv-web
+```
+
+### Hosting Examples
+
+Render:
+- Create a new Web Service from this repo
+- Environment: Docker
+- Expose port `8080`
+- Deploy
+
+Fly.io:
+- `fly launch` (choose Dockerfile)
+- Ensure `PORT=8080` is set
+- `fly deploy`
+
+Railway:
+- New Project -> Deploy from GitHub
+- Select Dockerfile
+- Set `PORT=8080` if prompted
+- Deploy
+
+DigitalOcean App Platform:
+- Create App from GitHub
+- Use Dockerfile
+- Set HTTP port to `8080`
+- Deploy
+
+---
+
 ## Releases
 
 Prebuilt Go and Rust executables are published on GitHub Releases. Download the asset for your platform from:
@@ -241,6 +288,32 @@ https://github.com/IcySparkle/UsxToCsv/releases
 Notes:
 - Go and Rust builds are feature-equivalent; pick either.
 - Use the `*.sha256` file to verify downloads if desired.
+
+## GHCR (Docker Image) Deployment
+
+The web server is built and pushed to GHCR on every `v*` tag.
+
+Image name:
+
+`ghcr.io/icySparkle/usxtocsv-web:<tag>`
+
+Examples:
+
+```bash
+docker pull ghcr.io/icySparkle/usxtocsv-web:v1.0.20260124.4
+docker run -p 8080:8080 ghcr.io/icySparkle/usxtocsv-web:v1.0.20260124.4
+```
+
+Use `latest` for the most recent tag:
+
+```bash
+docker pull ghcr.io/icySparkle/usxtocsv-web:latest
+docker run -p 8080:8080 ghcr.io/icySparkle/usxtocsv-web:latest
+```
+
+Permissions:
+- Public repo => image is public by default.
+- If you ever make the repo private, GHCR requires auth to pull.
 
 ### Download and Run (Windows)
 
@@ -342,7 +415,10 @@ If styling is present:
 
 ## 🛠 Requirements
 
-- Windows PowerShell 5.1 **or** PowerShell 7+  
+- PowerShell script: Windows PowerShell 5.1 **or** PowerShell 7+  
+- Go CLI: Go 1.22+ (to build from source)  
+- Rust CLI: Rust 1.70+ and Cargo (to build from source)  
+- Web app: Go 1.22+ (local run) or Docker (container run)  
 - UTF-8 encoded USX/USFM/SFM files  
 
 ---
