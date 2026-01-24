@@ -223,6 +223,7 @@ func hasWildcard(path string) bool {
 }
 
 func convertUsxToCsv(usxPath, csvPath string) error {
+	fmt.Printf("Processing (USX) %s\n", usxPath)
 	root, err := parseXML(usxPath)
 	if err != nil {
 		return err
@@ -246,10 +247,16 @@ func convertUsxToCsv(usxPath, csvPath string) error {
 	}
 
 	sortRows(state.rows)
-	return writeCsv(csvPath, state.rows)
+	if err := writeCsv(csvPath, state.rows); err != nil {
+		return err
+	}
+
+	fmt.Printf("Created CSV: %s\n", csvPath)
+	return nil
 }
 
 func convertUsfmToCsv(usfmPath, csvPath string) error {
+	fmt.Printf("Processing (USFM/SFM) %s\n", usfmPath)
 	data, err := os.ReadFile(usfmPath)
 	if err != nil {
 		return err
@@ -352,7 +359,12 @@ func convertUsfmToCsv(usfmPath, csvPath string) error {
 	}
 
 	sortRows(rows)
-	return writeCsv(csvPath, rows)
+	if err := writeCsv(csvPath, rows); err != nil {
+		return err
+	}
+
+	fmt.Printf("Created CSV: %s\n", csvPath)
+	return nil
 }
 
 func addCurrentVerseUsfm(rows *[]row, book, chapter, verse, plain, styled string, footnotes, crossrefs []string, subtitle string) {

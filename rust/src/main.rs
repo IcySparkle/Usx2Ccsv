@@ -228,6 +228,7 @@ fn has_wildcard(text: &str) -> bool {
 }
 
 fn convert_usx_to_csv(usx_path: &Path, csv_path: &Path) -> Result<(), String> {
+    println!("Processing (USX) {}", usx_path.display());
     let root = parse_xml(usx_path).map_err(|e| e.to_string())?;
     if root.name != "usx" {
         return Err(format!("No <usx> root found in {}", usx_path.display()));
@@ -253,10 +254,13 @@ fn convert_usx_to_csv(usx_path: &Path, csv_path: &Path) -> Result<(), String> {
     }
 
     sort_rows(&mut state.rows);
-    write_csv(csv_path, &state.rows).map_err(|e| e.to_string())
+    write_csv(csv_path, &state.rows).map_err(|e| e.to_string())?;
+    println!("Created CSV: {}", csv_path.display());
+    Ok(())
 }
 
 fn convert_usfm_to_csv(usfm_path: &Path, csv_path: &Path) -> Result<(), String> {
+    println!("Processing (USFM/SFM) {}", usfm_path.display());
     let data = fs::read_to_string(usfm_path).map_err(|e| e.to_string())?;
     let normalized = data.replace("\r\n", "\n");
     let lines: Vec<&str> = normalized.split('\n').collect();
@@ -411,7 +415,9 @@ fn convert_usfm_to_csv(usfm_path: &Path, csv_path: &Path) -> Result<(), String> 
     }
 
     sort_rows(&mut rows);
-    write_csv(csv_path, &rows).map_err(|e| e.to_string())
+    write_csv(csv_path, &rows).map_err(|e| e.to_string())?;
+    println!("Created CSV: {}", csv_path.display());
+    Ok(())
 }
 
 fn add_current_verse_usfm(
