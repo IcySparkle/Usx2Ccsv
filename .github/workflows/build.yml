@@ -125,6 +125,11 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+      - name: Normalize image owner
+        shell: bash
+        run: |
+          owner="$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          echo "IMAGE_OWNER=$owner" >> "$GITHUB_ENV"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -142,5 +147,5 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ toLower(github.repository_owner) }}/usxtocsv-web:${{ github.ref_name }}
-            ghcr.io/${{ toLower(github.repository_owner) }}/usxtocsv-web:latest
+            ghcr.io/${{ env.IMAGE_OWNER }}/usxtocsv-web:${{ github.ref_name }}
+            ghcr.io/${{ env.IMAGE_OWNER }}/usxtocsv-web:latest
