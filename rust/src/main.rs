@@ -9,7 +9,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 enum NodeType {
     Element,
     Text,
@@ -543,7 +543,8 @@ fn extract_ft_from_usfm_note_text(note_text: &str) -> String {
 }
 
 fn parse_xml(path: &Path) -> Result<Node, io::Error> {
-    let mut reader = Reader::from_file(path)?;
+    let mut reader = Reader::from_file(path)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
     reader.trim_text(false);
 
     let mut buf = Vec::new();
