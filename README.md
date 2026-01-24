@@ -252,6 +252,24 @@ docker build -t usxtocsv-web .
 docker run -p 8080:8080 usxtocsv-web
 ```
 
+### React UI (Vite)
+
+The React UI lives in `web-ui` and calls the `/convert` endpoint.
+
+Run locally:
+
+```bash
+cd web-ui
+npm install
+npm run dev
+```
+
+By default it calls the API on the same origin. To point at a remote backend:
+
+```bash
+VITE_API_BASE="https://your-backend.example.com" npm run dev
+```
+
 ### Hosting Examples
 
 Render:
