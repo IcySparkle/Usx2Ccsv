@@ -218,6 +218,14 @@ Run:
 
 ---
 
+## Releases
+
+Prebuilt Go and Rust executables are published on GitHub Releases. Download the asset for your platform from:
+
+https://github.com/IcySparkle/UsxToCsv/releases
+
+---
+
 ## 📁 Example CSV Row
 
 ```csv
