@@ -2,6 +2,8 @@
 .github
 out
 rust
+web-ui/node_modules
+web-ui/dist
 *.md
 *.json
 CHANGELOG.md

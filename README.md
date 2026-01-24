@@ -252,6 +252,8 @@ docker build -t usxtocsv-web .
 docker run -p 8080:8080 usxtocsv-web
 ```
 
+The Docker image serves the React UI by default. To use the minimal built-in HTML instead, open `http://localhost:8080/simple`.
+
 ### React UI (Vite)
 
 The React UI lives in `web-ui` and calls the `/convert` endpoint.

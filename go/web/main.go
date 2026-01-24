@@ -25,7 +25,12 @@ func main() {
 	listenPort := resolvePort(*port)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", handleIndex)
+	if staticDir := resolveStaticDir(); staticDir != "" {
+		mux.Handle("/", spaHandler(staticDir))
+		mux.HandleFunc("/simple", handleIndex)
+	} else {
+		mux.HandleFunc("/", handleIndex)
+	}
 	mux.HandleFunc("/convert", handleConvert)
 
 	server := &http.Server{
@@ -58,6 +63,38 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	io.WriteString(w, indexHTML)
+}
+
+func resolveStaticDir() string {
+	if dir := os.Getenv("WEB_UI_DIR"); dir != "" {
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			return dir
+		}
+	}
+	return ""
+}
+
+func spaHandler(dir string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.NotFound(w, r)
+			return
+		}
+
+		path := filepath.Clean(r.URL.Path)
+		if path == "/" {
+			http.ServeFile(w, r, filepath.Join(dir, "index.html"))
+			return
+		}
+
+		full := filepath.Join(dir, path)
+		if info, err := os.Stat(full); err == nil && !info.IsDir() {
+			http.ServeFile(w, r, full)
+			return
+		}
+
+		http.ServeFile(w, r, filepath.Join(dir, "index.html"))
+	})
 }
 
 func handleConvert(w http.ResponseWriter, r *http.Request) {
