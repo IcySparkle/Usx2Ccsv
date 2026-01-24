@@ -9,7 +9,7 @@ RUN go build -o /out/usxtocsv-web ./web
 FROM node:20-alpine AS webui
 WORKDIR /app/web-ui
 COPY web-ui/package.json web-ui/package-lock.json* web-ui/
-RUN npm install --silent
+RUN npm install --no-audit --no-fund
 COPY web-ui /app/web-ui
 RUN npm run build
 
