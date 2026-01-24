@@ -305,6 +305,14 @@ Prebuilt Go and Rust executables are published on GitHub Releases. Download the 
 
 https://github.com/IcySparkle/UsxToCsv/releases
 
+## Wiki Docs
+
+Extended documentation lives under `docs/` (mirrors the GitHub Wiki content):
+- `docs/Home.md`
+- `docs/Quick-Start.md`
+- `docs/CLI-Usage.md`
+- `docs/Web-App-Guide.md`
+
 Notes:
 - Go and Rust builds are feature-equivalent; pick either.
 - Use the `*.sha256` file to verify downloads if desired.
