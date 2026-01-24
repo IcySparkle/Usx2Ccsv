@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -150,7 +151,7 @@ func handleConvert(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func saveUploads(baseDir string, files []*http.FileHeader) ([]string, error) {
+func saveUploads(baseDir string, files []*multipart.FileHeader) ([]string, error) {
 	var paths []string
 
 	for _, fh := range files {
