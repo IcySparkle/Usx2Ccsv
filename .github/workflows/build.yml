@@ -8,6 +8,9 @@ on:
     branches: ["main"]
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   go-build:
     name: go ${{ matrix.os }}
@@ -59,6 +62,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          fail_on_unmatched_files: false
           files: |
             go/usxtocsv-go-${{ matrix.os }}.zip
             go/usxtocsv-go-${{ matrix.os }}.tar.gz
@@ -112,6 +116,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          fail_on_unmatched_files: false
           files: |
             rust/usxtocsv-rust-${{ matrix.os }}.zip
             rust/usxtocsv-rust-${{ matrix.os }}.tar.gz
