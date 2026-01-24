@@ -17,12 +17,6 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Normalize image owner
-        id: image_owner
-        shell: bash
-        run: |
-          owner="$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
-          echo "owner=$owner" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
@@ -148,5 +142,5 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ steps.image_owner.outputs.owner }}/usxtocsv-web:${{ github.ref_name }}
-            ghcr.io/${{ steps.image_owner.outputs.owner }}/usxtocsv-web:latest
+            ghcr.io/${{ toLower(github.repository_owner) }}/usxtocsv-web:${{ github.ref_name }}
+            ghcr.io/${{ toLower(github.repository_owner) }}/usxtocsv-web:latest
