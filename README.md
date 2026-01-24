@@ -224,6 +224,71 @@ Prebuilt Go and Rust executables are published on GitHub Releases. Download the 
 
 https://github.com/IcySparkle/UsxToCsv/releases
 
+Notes:
+- Go and Rust builds are feature-equivalent; pick either.
+- Use the `*.sha256` file to verify downloads if desired.
+
+### Download and Run (Windows)
+
+1) Download the `usxtocsv-go-windows-latest.zip` or `usxtocsv-rust-windows-latest.zip` asset.
+2) Extract the zip file.
+3) Run from PowerShell:
+
+```powershell
+.\usxtocsv.exe -input "C:\Bible\JHN.usx"
+```
+
+Verify checksum (optional):
+
+```powershell
+Get-FileHash .\usxtocsv-*-windows-latest.zip -Algorithm SHA256
+Get-Content .\usxtocsv-*-windows-latest.zip.sha256
+```
+
+### Download and Run (macOS)
+
+1) Download the `usxtocsv-go-macos-latest.tar.gz` or `usxtocsv-rust-macos-latest.tar.gz` asset.
+2) Extract:
+
+```bash
+tar -xzf usxtocsv-*-macos-latest.tar.gz
+```
+
+3) Run:
+
+```bash
+./usxtocsv -input "/Users/you/Bible/JHN.usx"
+```
+
+Verify checksum (optional):
+
+```bash
+shasum -a 256 usxtocsv-*-macos-latest.tar.gz
+cat usxtocsv-*-macos-latest.tar.gz.sha256
+```
+
+### Download and Run (Linux)
+
+1) Download the `usxtocsv-go-ubuntu-latest.tar.gz` or `usxtocsv-rust-ubuntu-latest.tar.gz` asset.
+2) Extract:
+
+```bash
+tar -xzf usxtocsv-*-ubuntu-latest.tar.gz
+```
+
+3) Run:
+
+```bash
+./usxtocsv -input "/home/you/Bible/JHN.usx"
+```
+
+Verify checksum (optional):
+
+```bash
+sha256sum usxtocsv-*-ubuntu-latest.tar.gz
+cat usxtocsv-*-ubuntu-latest.tar.gz.sha256
+```
+
 ---
 
 ## 📁 Example CSV Row
